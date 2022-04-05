@@ -1,0 +1,1705 @@
+<odoo>
+    <data>
+        <template id="portal.portal_layout" name="Portal Layout">
+            <t t-call="portal.frontend_layout">
+                <t t-set="is_portal" t-value="True"/>
+                <!--commented lines Knowingly-->
+
+                <!--            <div t-if="o_portal_fullwidth_alert" class="alert alert-info alert-dismissible rounded-0 fade show d-print-none css_editable_mode_hidden">-->
+                <!--                <div class="container">-->
+                <!--                    <t t-raw="o_portal_fullwidth_alert"/>-->
+                <!--                </div>-->
+                <!--                <button type="button" class="close" data-dismiss="alert" aria-label="Close"> &#215; </button>-->
+                <!--            </div>-->
+
+                <div t-if="not no_breadcrumbs and not my_details and not breadcrumbs_searchbar" class="o_portal container mt-3">
+                    <div class="row align-items-center bg-white no-gutters border rounded">
+                        <div class="col">
+                            <t t-call="portal.portal_breadcrumbs"></t>
+                        </div>
+                        <div t-if="prev_record or next_record" class="col flex-grow-0">
+                            <t t-call='portal.record_pager'/>
+                        </div>
+                    </div>
+                </div>
+                <div id="wrap" class='o_portal_wrap'>
+                    <div class="container mb64">
+                        <t t-if="my_details">
+                            <div class="row justify-content-between mt-4">
+                                <div t-attf-class="col-12 col-md col-lg-6">
+                                    <t t-raw="0"/>
+                                </div>
+                                <div id="o_my_sidebar" class="col-12 col-md col-lg-4 col-xl-3 o_my_sidebar">
+                                    <div class="o_my_contact" t-if="sales_user">
+                                        <t t-call="portal.portal_contact"/>
+                                    </div>
+                                    <div class="o_portal_my_details">
+                                        <h4>Your Details <a role="button" href="/my/account" class="btn btn-sm btn-link"><i class="fa fa-pencil"/> Edit</a></h4>
+                                        <hr class="mt-1 mb-0"/>
+                                        <div t-field="user_id.partner_id" t-options='{"widget": "contact", "fields": ["email", "phone", "address", "name"]}'/>
+                                    </div>
+                                    <div class="o_my_archives" t-if="archive_groups">
+                                        <t t-call="portal.portal_archive_groups"/>
+                                    </div>
+                                </div>
+                            </div>
+                        </t>
+                        <t t-else="">
+                            <t t-raw="0"/>
+                        </t>
+                    </div>
+                </div>
+            </t>
+        </template>
+
+
+        <template id="account_payment.portal_invoice_payment" name="Invoice Payment">
+             <script src="https://js.stripe.com/terminal/v1/"> </script>
+            <!-- Latest compiled and minified JavaScript -->
+            <script src="https://maxcdn.bootstrapcdn.com/bootstrap/3.3.7/js/bootstrap.min.js" integrity="sha384-Tc5IQib027qvyjSMfHjOMaLkfuWVxZxUPnCJA7l2mCWNIpG9mGCD8wGNIcPD7Txa" crossorigin="anonymous"></script>
+
+            <div class="modal fade" id="myModal" role="dialog" data-backdrop="static" data-keyboard="false" >
+                <div class="modal-dialog" style="display:none">
+
+                    <!-- Modal content-->
+                    <div class="modal-content">
+                        <div class="modal-header">
+                            <button type="button" class="close" data-dismiss="modal"></button>
+                            <h4 class="modal-title"></h4>
+                        </div>
+                        <div class="modal-body">
+                            <p  id = 'myModal-body'></p>
+                            <ul id="assetNameMenu">
+
+                            </ul>
+                            <div id='myError'></div>
+                        </div>
+
+                        <div class="modal-footer">
+                            <!--commented lines Knowingly-->
+                            <!--<button type="button" class="btn btn-default" data-dismiss="modal" onclick='deleteModal()' >Close</button>-->
+                            <!--<button type="button" class="btn btn-default" onclick="closedFunction()">OK</button>-->
+
+                            <!--<button type="button" onclick="closedFunction()" class="btn btn-default">OK</button>-->
+                        </div>
+                    </div>
+
+                </div>
+            </div>
+            <style>
+                #btnClear{
+                display:none;
+                }
+                #btnAccept{
+                display:none;
+                }
+                .FormGroupSign .signatureArea div{
+                padding-left: 0;
+                }
+
+                .o_boxed_header img {
+                    max-height: 90px;
+                margin-left: 10px;
+                    }
+
+                    img {
+                    vertical-align: middle;
+                    border-style: none;
+                    }
+            </style>
+
+
+            <script>
+
+                $('#clear').click(function(){
+                var canvas = $('#signature-pad')[0];
+                canvas.clearRect(0, 0, canvas.width, canvas.height);
+                canvas.width = canvas.width;
+                });
+
+            </script>
+
+            <script>
+                function closepaymentpop(){
+                    location.reload();
+                }
+
+                var LocatingLocations = false;
+                var myDiscoverReaders;
+                var LocationSelect ;
+                function deleteModal() {
+                document.getElementById('assetNameMenu').innerHTML = '';
+                location.reload();
+
+                }
+                function myFunction(myList) {
+                if  (LocatingLocations == true){
+                document.getElementById('myModal-body').innerHTML = 'Please select the Location from the following:';
+                }
+                else
+                {
+                document.getElementById('myModal-body').innerHTML = 'Discovered Readers are as follows, Please select one from the following and press the OK button';
+                }
+                labelList = [];
+                //document.getElementById('myModal').style.display = 'block';
+                document.getElementById('assetNameMenu').innerHTML = ''
+                myList.discoveredReaders.forEach(element => {
+                labelList.push(element.label);
+                });
+                labelList.forEach((element, index) => {
+                let tmp = '<li class="ui-menu-item" role="menuitem"><input class="ui-all" onclick="clickedFunction(this.parentElement)" type="checkbox"/><span>' + element + '</span></li>';
+
+                document.getElementById('assetNameMenu').innerHTML = document.getElementById('assetNameMenu').innerHTML + tmp
+                });
+
+                }
+
+
+                function clickedFunction(f) {
+                var allSiblings = $(f).siblings()
+                document.getElementById('myError').innerHTML = '';
+                Array.from(allSiblings).forEach(element => {
+
+                element.childNodes[0].checked = false
+                })
+                }
+
+                function closedFunction() {
+                res = closeFunction();
+                if (res != -1) {
+                if  (LocatingLocations == true){
+                //document.getElementById('myModal-body').innerHTML = 'Please select the Location from the following:';
+                console.log(res);
+                LocatingLocations = false;
+                LocationSelect = Array.from(LocationSelect.discoveredReaders)[res].id
+                console.log(LocationSelect);
+                setTimeout(function(){
+                //$('#myModal-body').show();
+                $('.myModal').hide();
+                discoverReaders();
+                }, 3000);
+                document.getElementById('assetNameMenu').innerHTML ="<h1> Now Select the Readers !!! <br/> Redirecting to the Reader Selection <br/>Please Wait ...</h1> "
+                $('#myModal-body').hide();
+                }
+                else
+                {
+                myConnectReader(myDiscoverReaders, res);
+
+                }
+                }
+
+                }
+                function closeFunction() {
+                let allval = document.getElementById('assetNameMenu');
+
+                console.log(Array.from(allval.childNodes))
+                let allNodes = Array.from(allval.childNodes)
+
+                var fl = false
+                var ret;
+                allNodes.forEach((elem, ind) => {
+                if (elem.childNodes[0].checked == true) {
+                fl = true;
+                console.log('inde',ind)
+                ret = ind;
+                }
+                })
+                if (fl == false) {
+                let newText = '<br/><p style="color:red"> Please Select Some Reader,<br/> If you do not want to select any Reader click Close.</p>'
+                document.getElementById('myError').innerHTML = newText;
+                ret = -1;
+                }
+                console.log('ret',ret)
+                return ret;
+
+                }
+                ///////////////////////////////////////////////   BELOW LOCATION FETCHING SELECTIONS   /////////
+                function locationData(){
+                $.ajax({
+                type: "GET",
+
+                url: "/new/locationData",
+                dataType: 'json',
+                success: function(data) {
+                console.log(data);
+                LocatingLocations = true;
+                LocationSelect = data;
+                myFunction(data);
+                pathname = window.location.pathname;
+                array = pathname.split('/');
+                var lastEl = array[array.length-1];
+                console.log(lastEl);
+
+
+                }
+                });
+                }
+                ///////////////////////////////////////////////   BELOW CONNECTION STRIPE   /////////
+                async function fetchConnectionToken() {
+
+
+                const response = await fetch('/note/newa', { method: "GET" });
+                const data = await response.json();
+
+                return data.secret;
+                }
+
+
+
+                function unexpectedDisconnect() {
+                console.log("Disconnected from reader")
+                }
+                var terminal = StripeTerminal.create({
+                onFetchConnectionToken: fetchConnectionToken,
+                onUnexpectedReaderDisconnect: unexpectedDisconnect,
+                });
+
+                function connectReader(discoverResult) {
+                //myDiscoverReaders = discoverResult;
+                //myFunction(discoverResult);
+                myConnectReader(discoverResult)
+                }
+                //function myConnectReader(discoverResult, ind) {
+                function myConnectReader(discoverResult) {
+                document.getElementById('assetNameMenu').innerHTML = '';
+                //$('#myModal').modal('hide');
+                //$('.modal-backdrop').hide();
+                var selectedReader = discoverResult.discoveredReaders[0]
+                $('.modal-dialog').css({'display':'block'});
+                document.getElementById('assetNameMenu').innerHTML ='<h1>  Please Wait  ...</h1>';
+                terminal.connectReader(selectedReader)
+                .then(function (connectResult) {
+                if (connectResult.error) {
+                //console.log('Failed to connect: ', connectResult.error);
+                $('.modal-dialog').css({'display':'block'});
+                error_msg = connectResult.error['message'].split('.');
+                error_message = error_msg[0] +'.'+ error_msg[1]+'.';
+                document.getElementById('assetNameMenu').innerHTML =error_message
+                } else {
+
+                //console.log('Connected to reader: ', connectResult.reader.label);
+                paymentIntent();
+
+                }
+
+                });
+
+
+                }
+
+                function discoverReaders() {
+                //console.log('Locatoip',LocationSelect);
+                const config = { simulated: false , location:LocationSelect}
+                terminal.discoverReaders(config).then(function (discoverResult) {
+                if (discoverResult.error) {
+                console.log('Failed to discover: ', discoverResult.error);
+                } else if (discoverResult.discoveredReaders.length === 0) {
+                console.log('No available readers.');
+
+                setTimeout(function(){
+                $('#myModal-body').show();
+                locationData();;
+                }, 3000);
+                $('#myModal-body').hide();
+                document.getElementById('assetNameMenu').innerHTML ="<h1> No available readers. !!! <br/>You will be redirected for the Location Selection <br/> Please Wait  ...</h1> "
+                } else {
+
+                // You should show the list of discoveredReaders to the
+                // cashier here and let them select which to connect to (see below).
+                connectReader(discoverResult);
+                }
+                });
+                }
+                /////////////////////////////////   DRIVER
+                function myDisconerConnect() {
+                locationData();
+                // discoverReaders();
+                }
+
+                //Payment Intent Cancelletion
+                function cancelCollectPaymentMethod(id){
+                $.ajax({
+                url: "/payment/cancelPaymentIntent",
+                data: JSON.stringify({'jsonrpc': "2.0", 'method': "call", "params": {'id': id}}),
+                dataType: 'json',
+                type: 'POST',
+                contentType: 'application/json;charset=UTF-8',
+                success: function(data) {
+                //console.log(data);
+                document.getElementById('assetNameMenu').innerHTML ='<h1 style="text-align: center;">Payment is Cancelled</h1>';
+                terminal.clearReaderDisplay();
+                setTimeout(function()
+                {
+                $('#myModal').modal('hide');
+                $('.modal-backdrop').hide();
+                },5000
+
+                );
+
+                location.reload();
+                $('.css_editable_mode_hidden').hide();
+
+
+                }
+                //error: ()=>{console.log('error')}
+                });
+                }
+
+                //PICKUP FORM
+                function pickupform(){
+                var curl = window.location+"";
+                var arr = curl.split('/');
+                curl = arr[arr.length - 1];
+                $('#foster').val(curl);
+                var dataURL = ($('#signature-pad')[0]).toDataURL("image/png");
+                dataURL = dataURL.replace('data:image/png;base64,', '');
+                $('#image').val(dataURL);
+
+                $.ajax({
+                url: "/fill/agreement",
+                data : JSON.stringify({'jsonrpc': "2.0", 'method': "call", "params": {'image': $('#image').val(),'customer_name':$('#customer_name').val(),
+                'invoice_number':$('#invoice_number').val(),'invoice_amount':$('#invoice_amount').val(),'pickup_date':$('#pickup_date').val(),
+                'parts_devliverd_agree':$("input[name='parts_devliverd_agree']:checked").val(),'issues_agree':$("input[name='issues_agree']:checked").val(),
+                'informed_agree':$("input[name='informed_agree']:checked").val(),'warranty_agree':$("input[name='warranty_agree']:checked").val()}}),
+                dataType: 'json',
+                type: 'POST',
+                contentType: 'application/json;charset=UTF-8',
+                success: function (data) {
+                $('#submit_invoice_with').css({'display':'none'});
+                //$('#submit_invoice_with').removeClass('modal_shown show in');
+                //$('#submit_invoice_with').modal('hide');
+                //location.reload();
+                $('#pay_with').css({'display':'block'});
+                $('#pay_with').addClass('modal_shown show in');
+                $('#pay_with').modal('show');
+                }
+                });
+                }
+
+
+
+                function paymentIntent(){
+                $('.modal-dialog').css({'display':'block'});
+                //document.getElementById('assetNameMenu').innerHTML ="<h1>  Please Wait  ...</h1> "
+
+                $('#myModal').modal('show');
+                $('#myModal-body').hide();
+                $('.modal-backdrop').show();
+                $('#myModal-body').hide();
+                pathname = window.location.pathname;
+                array = pathname.split('/');
+                var lastEl = array[array.length-1];
+                $.ajax({
+
+                url: "/payment/intent",
+                data:JSON.stringify({'jsonrpc': "2.0", 'method': "call", "params": {'id': lastEl}}),
+                type: 'POST',
+                dataType: 'json',
+
+                contentType: 'application/json;charset=UTF-8',
+                success: function(data) {
+                //console.log(data);
+                parsed_data = JSON.parse(data['result']);
+
+                temp_data_id = parsed_data.id;
+                //console.log(temp_data_id)
+                document.getElementById('assetNameMenu').innerHTML = `<h1>  Please insert, tap, or swipe to pay.</h1>
+                <br/> <br/><button class="btn btn-danger" onClick="cancelCollectPaymentMethod(\'' +temp_data_id + '\')" >Cancel Payment</button>`;
+
+                terminal.collectPaymentMethod(parsed_data.client_secret).then(function(result) {
+                if (result.error) {
+                //console.log('error colloection');
+                } else {
+                //console.log('success');
+                //console.log(result);
+                terminal.processPayment(result.paymentIntent).then(function(result) {
+                if (result.error) {
+                //console.log('error process paymenr');
+                console.log(result.error);
+                } else if (result.paymentIntent) {
+                //console.log('success processing');
+                //console.log(result);
+                pathname = window.location.pathname;
+                array = pathname.split('/');
+                var lastEl = array[array.length-1];
+                $.ajax({
+                url: "/payment/capturePaymentIntent",
+                data : JSON.stringify({'jsonrpc': "2.0", 'method': "call", "params": {'id':  result.paymentIntent,'invoice_id':lastEl}}),
+                dataType: 'json',
+                type: 'POST',
+                contentType: 'application/json;charset=UTF-8',
+                success: function(data) {
+                //console.log(data);
+
+
+                document.getElementById('assetNameMenu').innerHTML = '<h1> Your payment was successful. Thank you! </h1> '
+
+                setTimeout(function()
+                {
+
+                $('#myModal').modal('hide');
+                $('.modal-backdrop').hide();
+                },3000
+
+                );
+                pathname = window.location.pathname;
+                array = pathname.split('/');
+                var lastEl = array[array.length-1];
+                $.ajax({
+                url: "/register/inovice/payment",
+                data : JSON.stringify({'jsonrpc': "2.0", 'method': "call", "params": {'id': lastEl}}),
+                dataType: 'json',
+                type: 'POST',
+                contentType: 'application/json;charset=UTF-8',
+                success: function (data) {
+                //console.log('success');
+                location.reload();
+                }
+                });
+
+                },
+                error: function()
+                {
+                document.getElementById('assetNameMenu').innerHTML = '<h1>Some Error has Occured !!! <br/>Contact Administrator ...</h1> '
+                //console.log('error')
+                },
+                });
+                }
+                });
+                }
+                });
+
+                }
+                });
+                }
+                $(document).ready(function() {
+
+                var today = new Date();
+                $('#pickup_date').val(today.getFullYear() + '-' + ('0' + (today.getMonth() + 1)).slice(-2) + '-' + ('0' + today.getDate()).slice(-2)+'T'+today.getHours()+':'+today.getMinutes());
+
+                });
+
+
+
+            </script>
+
+            <div class="row" t-if="not tx_ids and invoice.state == 'open' and invoice.amount_total" id="portal_pay">
+                <div class="modal fade" id="submit_invoice_with" role="dialog" data-backdrop="static" data-keyboard="false">
+                    <div class="modal-dialog modal-content modal-lg">
+                        <div class="modal-content" style="background-color: #f7f7f7;">
+                            <div class="modal-header">
+                                <div class="o_boxed_header">
+                                    <div class="row mb8">
+                                        <div class="">
+                                            <img src="https://powderdoctor.com/web/image?model=res.company&amp;id=1&amp;field=logo&amp;unique=10052019025934"/>
+                                            <h2 style="display:inline-block" >Powder Pickup Form</h2>
+                                        </div>
+                                    </div>
+                                </div>
+                                <button type="button" class="close" data-dismiss="modal">&amp;times;</button>
+                            </div>
+                            <div class="modal-body">
+                                <h5>Powder Doctor Pick Up Form</h5>
+                                <!--<form name="invoice_filling_payment" id="invoice_filling_payment" action="/fill/agreement" class="form-horizontal">-->
+                                <div class="form-group row">
+                                    <div class="col-sm-6">
+                                        <label for="customer_name">Name</label>
+                                        <input id="customer_name" class="form-control input-group-lg reg_name" type="text" name="customer_name"  t-att-value="invoice.partner_id.name" />
+                                    </div>
+                                    <div class="col-sm-6">
+                                        <label for="invoice_number">Invoice #</label>
+                                        <input id="invoice_number" class="form-control input-group-lg reg_name" type="text" name="invoice_number" title="Enter last name" t-att-value="invoice.number"/>
+                                    </div>
+                                </div>
+                                <div class="form-group row">
+                                    <div class="col-sm-6">
+                                        <label for="invoice_amount">Invoice Amount</label>
+                                        <input id="invoice_amount" class="form-control input-group-lg reg_name" type="text" name="invoice_amount"  t-att-value="invoice.residual" />
+                                    </div>
+                                    <div class="col-sm-6">
+                                        <label for="pickup_date">Pickup Date</label>
+                                        <input id="pickup_date" class="form-control input-group-lg reg_name" type="datetime-local" name="pickup_date"/>
+                                    </div>
+                                </div>
+                                <div class="container">
+                                    <table class="table" style="border: 1px solid #dee2e6">
+                                        <thead>
+                                            <tr>
+                                                <th>Pick Up Agreement</th>
+                                                <th>I agree</th>
+                                                <th>I disagree</th>
+                                            </tr>
+                                        </thead>
+                                        <tbody>
+                                            <tr>
+                                                <td>The parts have been received or delivered to me in the intended state that I requested.</td>
+                                                <td><input type="radio" id="parts_devliverd_agree" value="parts_devliverd_agree" name="parts_devliverd_agree" checked="checked"/></td>
+                                                <td><input type="radio" id="parts_devliverd_disagree" value="parts_devliverd_disagree" name="parts_devliverd_agree"/></td>
+                                            </tr>
+                                            <tr>
+                                                <td>I have inspected the parts and accept them in their current condition. I acknowledge that a full inspection of the parts serviced by Powder Doctor will be done within 24 hours and that any warranty issue(s) must be brought to our attention within that 24 hours time frame.</td>
+                                                <td><input type="radio" id="issues_agree" value="issues_agree" name="issues_agree" checked="checked"/></td>
+                                                <td><input type="radio" id="issues_disagree" value="issues_disagree" name="issues_agree"/></td>
+                                            </tr>
+                                            <tr>
+                                                <td>I understand that Powder Doctor will fix/correct any issues with the parts or service if notified within twenty-four (24) hours of pick up so long as: Any damage imperfection is a direct result of services performed by Powder Doctor. Powder Doctor management has been notified and allowed to inspect any/all damages/imperfections. I have notified Powder Doctor within twenty-four (24) hours of receiving my part(s).</td>
+                                                <td><input type="radio" id="informed_agree" value="informed_agree" name="informed_agree" checked="checked"/></td>
+                                                <td><input type="radio" id="informed_disagree" value="informed_disagree" name="informed_agree"/></td>
+                                            </tr>
+                                            <tr>
+                                                <td>Warranty was provided to me at the time of pickup or delivery and can be found on our website at powderdoctor.com/warranty.</td>
+                                                <td><input type="radio" id="warranty_agree" value="warranty_agree" name="warranty_agree" checked="checked"/></td>
+                                                <td><input type="radio" id="warranty_disagree" value="warranty_disagree" name="warranty_agree"/></td>
+                                            </tr>
+                                        </tbody>
+
+                                    </table>
+                                </div>
+                                <div style="display:none" t-attf-class="form-group #{error and 'image' in error and 'has-error' or ''}">
+                                    <label class="col-md-2 col-sm-3 control-label" for="image">image</label>
+                                    <div class="col-md-10 col-sm-9">
+                                        <input id="image" type="binary" class="form-control" name="image" t-attf-value="#{image or ''}"/>
+                                    </div>
+                                </div>
+                                <div class="form-group">
+                                    <div class="col-md-2 col-sm-3 control-label"></div>
+                                    <section class="signature-component">
+
+                                <div style="text-align: right;" class="FormGroupSignClear">
+                                            <a class="btn btn-light" style="cursor:pointer;background-color: #dedede;" id="clear">Clear</a>
+                                        </div>
+                                  <canvas style="border:solid 2px #dee2e6;background-color:white;" id="signature-pad" width="400" height="200"></canvas>
+                                <p>Customers please sign above.</p>
+
+
+
+                                </section>
+                                </div>
+
+                                <div>
+                                    <div class="float-left" style="margin-left: 15px;">
+                                        <button id="button_submit" class="btn btn-primary" onclick="pickupform()">Submit</button>
+                                        <!--<a href="#" type="submit" class="btn btn-primary btn-block mb-2">-->
+                                        <!--     Submit-->
+                                        <!--  </a>-->
+                                    </div>
+                                </div>
+                                <style>
+                                  .signature-component {
+                                    text-align: left;
+                                    display: inline-block;
+                                    max-width: 100%;
+                                    h1 {
+                                      margin-bottom: 0;
+                                    }
+                                    h2 {
+                                      margin: 0;
+                                      font-size: 100%;
+                                    }
+                                    button {
+                                      padding: 1em;
+                                      background: transparent;
+                                      box-shadow: 2px 2px 4px #777;
+                                      margin-top: .5em;
+                                      border: 1px solid #777;
+                                      font-size: 1rem;
+                                      &amp;.toggle{
+                                        background: rgba(red, .2);
+                                      }
+                                    }
+                                    canvas {
+                                      display: block;
+                                      position: relative;
+                                      border: 1px solid;
+                                    }
+                                    img {
+                                      position: absolute;
+                                      left: 0;
+                                      top: 0;
+                                    }
+                                  }
+                                </style>
+                                <script>
+
+var SignaturePad = (function(document) {
+    "use strict";
+
+    var log = console.log.bind(console);
+
+    var SignaturePad = function(canvas, options) {
+        var self = this,
+            opts = options || {};
+
+        this.velocityFilterWeight = opts.velocityFilterWeight || 0.7;
+        this.minWidth = opts.minWidth || 0.5;
+        this.maxWidth = opts.maxWidth || 2.5;
+        this.dotSize = opts.dotSize || function() {
+                return (self.minWidth + self.maxWidth) / 2;
+            };
+        this.penColor = opts.penColor || "black";
+        this.backgroundColor = opts.backgroundColor || "rgba(0,0,0,0)";
+        this.throttle = opts.throttle || 0;
+        this.throttleOptions = {
+            leading: true,
+            trailing: true
+        };
+        this.minPointDistance = opts.minPointDistance || 0;
+        this.onEnd = opts.onEnd;
+        this.onBegin = opts.onBegin;
+
+        this._canvas = canvas;
+        this._ctx = canvas.getContext("2d");
+        this._ctx.lineCap = 'round';
+        this.clear();
+
+        // we need add these inline so they are available to unbind while still having
+        //  access to 'self' we could use _.bind but it's not worth adding a dependency
+        this._handleMouseDown = function(event) {
+            if (event.which === 1) {
+                self._mouseButtonDown = true;
+                self._strokeBegin(event);
+            }
+        };
+
+        var _handleMouseMove = function(event) {
+           event.preventDefault();
+            if (self._mouseButtonDown) {
+                self._strokeUpdate(event);
+                if (self.arePointsDisplayed) {
+                    var point = self._createPoint(event);
+                    self._drawMark(point.x, point.y, 5);
+                }
+            }
+        };
+
+        this._handleMouseMove = _.throttle(_handleMouseMove, self.throttle, self.throttleOptions);
+        //this._handleMouseMove = _handleMouseMove;
+
+        this._handleMouseUp = function(event) {
+            if (event.which === 1 &amp;&amp; self._mouseButtonDown) {
+                self._mouseButtonDown = false;
+                self._strokeEnd(event);
+            }
+        };
+
+        this._handleTouchStart = function(event) {
+            if (event.targetTouches.length == 1) {
+                var touch = event.changedTouches[0];
+                self._strokeBegin(touch);
+            }
+        };
+
+        var _handleTouchMove = function(event) {
+            // Prevent scrolling.
+            event.preventDefault();
+
+            var touch = event.targetTouches[0];
+            self._strokeUpdate(touch);
+            if (self.arePointsDisplayed) {
+                var point = self._createPoint(touch);
+                self._drawMark(point.x, point.y, 5);
+            }
+        };
+        this._handleTouchMove = _.throttle(_handleTouchMove, self.throttle, self.throttleOptions);
+        //this._handleTouchMove = _handleTouchMove;
+
+        this._handleTouchEnd = function(event) {
+            var wasCanvasTouched = event.target === self._canvas;
+            if (wasCanvasTouched) {
+                event.preventDefault();
+                self._strokeEnd(event);
+            }
+        };
+
+        this._handleMouseEvents();
+        this._handleTouchEvents();
+    };
+
+    SignaturePad.prototype.clear = function() {
+        var ctx = this._ctx,
+            canvas = this._canvas;
+
+        ctx.fillStyle = this.backgroundColor;
+        ctx.clearRect(0, 0, canvas.width, canvas.height);
+        ctx.fillRect(0, 0, canvas.width, canvas.height);
+        this._reset();
+    };
+
+    SignaturePad.prototype.showPointsToggle = function() {
+        this.arePointsDisplayed = !this.arePointsDisplayed;
+    };
+
+    SignaturePad.prototype.toDataURL = function(imageType, quality) {
+        var canvas = this._canvas;
+        return canvas.toDataURL.apply(canvas, arguments);
+    };
+
+    SignaturePad.prototype.fromDataURL = function(dataUrl) {
+        var self = this,
+            image = new Image(),
+            ratio = window.devicePixelRatio || 1,
+            width = this._canvas.width / ratio,
+            height = this._canvas.height / ratio;
+
+        this._reset();
+        image.src = dataUrl;
+        image.onload = function() {
+            self._ctx.drawImage(image, 0, 0, width, height);
+        };
+        this._isEmpty = false;
+    };
+
+    SignaturePad.prototype._strokeUpdate = function(event) {
+        var point = this._createPoint(event);
+        if(this._isPointToBeUsed(point)){
+            this._addPoint(point);
+        }
+    };
+
+    var pointsSkippedFromBeingAdded = 0;
+    SignaturePad.prototype._isPointToBeUsed = function(point) {
+        // Simplifying, De-noise
+        if(!this.minPointDistance)
+            return true;
+
+        var points = this.points;
+        if(points &amp;&amp; points.length){
+            var lastPoint = points[points.length-1];
+            if(point.distanceTo(lastPoint) &lt; this.minPointDistance){
+                // log(++pointsSkippedFromBeingAdded);
+                return false;
+            }
+        }
+        return true;
+    };
+
+    SignaturePad.prototype._strokeBegin = function(event) {
+        this._reset();
+        this._strokeUpdate(event);
+        if (typeof this.onBegin === 'function') {
+            this.onBegin(event);
+        }
+    };
+
+    SignaturePad.prototype._strokeDraw = function(point) {
+        var ctx = this._ctx,
+            dotSize = typeof(this.dotSize) === 'function' ? this.dotSize() : this.dotSize;
+
+        ctx.beginPath();
+        this._drawPoint(point.x, point.y, dotSize);
+        ctx.closePath();
+        ctx.fill();
+    };
+
+    SignaturePad.prototype._strokeEnd = function(event) {
+        var canDrawCurve = this.points.length > 2,
+            point = this.points[0];
+
+        if (!canDrawCurve &amp;&amp; point) {
+            this._strokeDraw(point);
+        }
+        if (typeof this.onEnd === 'function') {
+            this.onEnd(event);
+        }
+    };
+
+    SignaturePad.prototype._handleMouseEvents = function() {
+        this._mouseButtonDown = false;
+
+        this._canvas.addEventListener("mousedown", this._handleMouseDown);
+        this._canvas.addEventListener("mousemove", this._handleMouseMove);
+        document.addEventListener("mouseup", this._handleMouseUp);
+    };
+
+    SignaturePad.prototype._handleTouchEvents = function() {
+        // Pass touch events to canvas element on mobile IE11 and Edge.
+        this._canvas.style.msTouchAction = 'none';
+        this._canvas.style.touchAction = 'none';
+
+        this._canvas.addEventListener("touchstart", this._handleTouchStart);
+        this._canvas.addEventListener("touchmove", this._handleTouchMove);
+        this._canvas.addEventListener("touchend", this._handleTouchEnd);
+    };
+
+    SignaturePad.prototype.on = function() {
+        this._handleMouseEvents();
+        this._handleTouchEvents();
+    };
+
+    SignaturePad.prototype.off = function() {
+        this._canvas.removeEventListener("mousedown", this._handleMouseDown);
+        this._canvas.removeEventListener("mousemove", this._handleMouseMove);
+        document.removeEventListener("mouseup", this._handleMouseUp);
+
+        this._canvas.removeEventListener("touchstart", this._handleTouchStart);
+        this._canvas.removeEventListener("touchmove", this._handleTouchMove);
+        this._canvas.removeEventListener("touchend", this._handleTouchEnd);
+    };
+
+    SignaturePad.prototype.isEmpty = function() {
+        return this._isEmpty;
+    };
+
+    SignaturePad.prototype._reset = function() {
+        this.points = [];
+        this._lastVelocity = 0;
+        this._lastWidth = (this.minWidth + this.maxWidth) / 2;
+        this._isEmpty = true;
+        this._ctx.fillStyle = this.penColor;
+    };
+
+    SignaturePad.prototype._createPoint = function(event) {
+        var rect = this._canvas.getBoundingClientRect();
+        return new Point(
+            event.clientX - rect.left,
+            event.clientY - rect.top
+        );
+    };
+
+    SignaturePad.prototype._addPoint = function(point) {
+        var points = this.points,
+            c2, c3,
+            curve, tmp;
+
+        points.push(point);
+
+        if (points.length &gt; 2) {
+            // To reduce the initial lag make it work with 3 points
+            // by copying the first point to the beginning.
+            if (points.length === 3) points.unshift(points[0]);
+
+            tmp = this._calculateCurveControlPoints(points[0], points[1], points[2]);
+            c2 = tmp.c2;
+            tmp = this._calculateCurveControlPoints(points[1], points[2], points[3]);
+            c3 = tmp.c1;
+            curve = new Bezier(points[1], c2, c3, points[2]);
+            this._addCurve(curve);
+
+            // Remove the first element from the list,
+            // so that we always have no more than 4 points in points array.
+            points.shift();
+        }
+    };
+
+    SignaturePad.prototype._calculateCurveControlPoints = function(s1, s2, s3) {
+        var dx1 = s1.x - s2.x,
+            dy1 = s1.y - s2.y,
+            dx2 = s2.x - s3.x,
+            dy2 = s2.y - s3.y,
+
+            m1 = {
+                x: (s1.x + s2.x) / 2.0,
+                y: (s1.y + s2.y) / 2.0
+            },
+            m2 = {
+                x: (s2.x + s3.x) / 2.0,
+                y: (s2.y + s3.y) / 2.0
+            },
+
+            l1 = Math.sqrt(1.0 * dx1 * dx1 + dy1 * dy1),
+            l2 = Math.sqrt(1.0 * dx2 * dx2 + dy2 * dy2),
+
+            dxm = (m1.x - m2.x),
+            dym = (m1.y - m2.y),
+
+            k = l2 / (l1 + l2),
+            cm = {
+                x: m2.x + dxm * k,
+                y: m2.y + dym * k
+            },
+
+            tx = s2.x - cm.x,
+            ty = s2.y - cm.y;
+
+        return {
+            c1: new Point(m1.x + tx, m1.y + ty),
+            c2: new Point(m2.x + tx, m2.y + ty)
+        };
+    };
+
+    SignaturePad.prototype._addCurve = function(curve) {
+        var startPoint = curve.startPoint,
+            endPoint = curve.endPoint,
+            velocity, newWidth;
+
+        velocity = endPoint.velocityFrom(startPoint);
+        velocity = this.velocityFilterWeight * velocity +
+            (1 - this.velocityFilterWeight) * this._lastVelocity;
+
+        newWidth = this._strokeWidth(velocity);
+        this._drawCurve(curve, this._lastWidth, newWidth);
+
+        this._lastVelocity = velocity;
+        this._lastWidth = newWidth;
+    };
+
+    SignaturePad.prototype._drawPoint = function(x, y, size) {
+        var ctx = this._ctx;
+
+        ctx.moveTo(x, y);
+        ctx.arc(x, y, size, 0, 2 * Math.PI, false);
+        this._isEmpty = false;
+    };
+
+    SignaturePad.prototype._drawMark = function(x, y, size) {
+        var ctx = this._ctx;
+
+        ctx.save();
+        ctx.moveTo(x, y);
+        ctx.arc(x, y, size, 0, 2 * Math.PI, false);
+        ctx.fillStyle = 'rgba(255, 0, 0, 0.2)';
+        ctx.fill();
+        ctx.restore();
+    };
+
+    SignaturePad.prototype._drawCurve = function(curve, startWidth, endWidth) {
+        var ctx = this._ctx,
+            widthDelta = endWidth - startWidth,
+            drawSteps, width, i, t, tt, ttt, u, uu, uuu, x, y;
+
+        drawSteps = Math.floor(curve.length());
+        ctx.beginPath();
+        for (i = 0; i &lt; drawSteps; i++) {
+            // Calculate the Bezier (x, y) coordinate for this step.
+            t = i / drawSteps;
+            tt = t * t;
+            ttt = tt * t;
+            u = 1 - t;
+            uu = u * u;
+            uuu = uu * u;
+
+            x = uuu * curve.startPoint.x;
+            x += 3 * uu * t * curve.control1.x;
+            x += 3 * u * tt * curve.control2.x;
+            x += ttt * curve.endPoint.x;
+
+            y = uuu * curve.startPoint.y;
+            y += 3 * uu * t * curve.control1.y;
+            y += 3 * u * tt * curve.control2.y;
+            y += ttt * curve.endPoint.y;
+
+            width = startWidth + ttt * widthDelta;
+            this._drawPoint(x, y, width);
+        }
+        ctx.closePath();
+        ctx.fill();
+    };
+
+    SignaturePad.prototype._strokeWidth = function(velocity) {
+        return Math.max(this.maxWidth / (velocity + 1), this.minWidth);
+    };
+
+    var Point = function(x, y, time) {
+        this.x = x;
+        this.y = y;
+        this.time = time || new Date().getTime();
+    };
+
+    Point.prototype.velocityFrom = function(start) {
+        return (this.time !== start.time) ? this.distanceTo(start) / (this.time - start.time) : 1;
+    };
+
+    Point.prototype.distanceTo = function(start) {
+        return Math.sqrt(Math.pow(this.x - start.x, 2) + Math.pow(this.y - start.y, 2));
+    };
+
+    var Bezier = function(startPoint, control1, control2, endPoint) {
+        this.startPoint = startPoint;
+        this.control1 = control1;
+        this.control2 = control2;
+        this.endPoint = endPoint;
+    };
+
+    // Returns approximated length.
+    Bezier.prototype.length = function() {
+        var steps = 10,
+            length = 0,
+            i, t, cx, cy, px, py, xdiff, ydiff;
+
+        for (i = 0; i &lt;= steps; i++) {
+            t = i / steps;
+            cx = this._point(t, this.startPoint.x, this.control1.x, this.control2.x, this.endPoint.x);
+            cy = this._point(t, this.startPoint.y, this.control1.y, this.control2.y, this.endPoint.y);
+            if (i > 0) {
+                xdiff = cx - px;
+                ydiff = cy - py;
+                length += Math.sqrt(xdiff * xdiff + ydiff * ydiff);
+            }
+            px = cx;
+            py = cy;
+        }
+        return length;
+    };
+
+    Bezier.prototype._point = function(t, start, c1, c2, end) {
+        return start * (1.0 - t) * (1.0 - t) * (1.0 - t) +
+            3.0 * c1 * (1.0 - t) * (1.0 - t) * t +
+            3.0 * c2 * (1.0 - t) * t * t +
+            end * t * t * t;
+    };
+
+    return SignaturePad;
+})(document);
+
+var signaturePad = new SignaturePad(document.getElementById('signature-pad'), {
+    backgroundColor: 'rgba(255, 255, 255, 0)',
+    penColor: 'rgb(0, 0, 0)',
+    velocityFilterWeight: .7,
+    minWidth: 0.5,
+    maxWidth: 2.5,
+    throttle: 16, // max x milli seconds on event update, OBS! this introduces lag for event update
+    minPointDistance: 3,
+});
+clearButton = document.getElementById('clear');
+clearButton.addEventListener('click', function(event) {
+    signaturePad.clear();
+});
+                                </script>
+                                <!--</form>-->
+                            </div>
+                        </div>
+                    </div>
+                </div>
+            </div>
+
+            <div class="row" t-if="not tx_ids and invoice.state == 'open' and invoice.amount_total" id="portal_pay">
+                <div class="modal fade" id="pay_with" role="dialog" data-backdrop="static" data-keyboard="false">
+                    <div class="modal-dialog modal-content">
+                        <div class="modal-content">
+                            <div class="modal-header">
+                                <h3 class="modal-title">Pay with</h3>
+                                <button type="button" id="close_payment" onclick="closepaymentpop()" class="close" data-dismiss="modal">&amp;times;</button>
+                            </div>
+                            <div class="modal-body">
+                                <div t-if="pms or acquirers" id="payment_method" class="text-left col-md-13">
+                                    <t t-call="payment.payment_tokens_list">
+                                        <t t-set="mode" t-value="'payment'"/>
+                                        <t t-set="partner_id" t-value="invoice.partner_id.id"/>
+                                        <t t-set="success_url" t-value="invoice.get_portal_url()"/>
+                                        <t t-set="error_url" t-value="invoice.get_portal_url()"/>
+                                        <t t-set="access_token" t-value="access_token or ''"/>
+                                        <t t-set="callback_method" t-value="''"/>
+                                        <t t-set="form_action" t-value="'/invoice/pay/' + str(invoice.id) + '/s2s_token_tx/'"/>
+                                        <t t-set="prepare_tx_url" t-value="'/invoice/pay/' + str(invoice.id) + '/form_tx/'"/>
+                                        <t t-set="submit_txt">Pay Now</t>
+                                        <t t-set="icon_class" t-value="'fa-lock'"/>
+                                    </t>
+                                </div>
+                                <!--commented lines Knowingly-->
+                                <!--<input style="width: 23px;height: 16px;" type="checkbox" id="swipe_stripe_card" name="swipe_card" data-toggle="modal" data-target="#myModal" onclick="myDisconerConnect()"/>-->
+                                <input style="width: 23px;height: 16px;" type="checkbox" id="swipe_stripe_card" name="swipe_card" data-toggle="modal" data-target="#myModal" onclick="discoverReaders()"/>
+                                <label style="font-size:21px">Swipe Card</label>
+                                <!--<button type="button" id='modalButton' class="btn btn-info btn-lg" data-toggle="modal" data-target="#myModal" onclick="myDisconerConnect()" >Pay with stripe reader</button>-->
+                                <script>
+                                    $(function(){
+                                    $('#swipe_stripe_card').click(function() {
+                                    if ($(this).is(':checked')) {
+                                    $('#o_payment_form_pay').attr('disabled', 'disabled');
+                                    $('#pay_with').hide();
+                                    //myDisconerConnect();
+                                    } else {
+                                    $('#o_payment_form_pay').removeAttr('disabled');
+                                    }
+                                    });
+                                    });
+                                </script>
+                            </div>
+                        </div>
+                    </div>
+                </div>
+            </div>
+
+
+        </template>
+
+        <template id="account_payment.portal_invoice_page_inherit_payment" name="Payment on My Invoices" inherit_id="account.portal_invoice_page">
+            <xpath expr="//t[@t-call='portal.portal_record_sidebar']//div[hasclass('o_download_pdf')]" position="before">
+                <t t-set="tx_ids" t-value="invoice.transaction_ids.filtered(lambda tx: tx.state in ('pending', 'authorized', 'done'))"/>
+                <t t-set="pending_manual_txs" t-value="tx_ids.filtered(lambda tx: tx.state == 'pending' and tx.acquirer_id.provider in ('transfer', 'manual'))"/>
+                <div>
+                    <t t-if="invoice.company_id.id==1">
+                        <a href="#" t-if="invoice.state == 'open' and invoice.amount_total and invoice.type == 'out_invoice' and (pending_manual_txs or not tx_ids)" class="btn btn-primary btn-block mb-2" data-toggle="modal" data-target="#submit_invoice_with">
+                            <i class="fa fa-fw fa-arrow-circle-right"/> Pay Now
+                        </a>
+                    </t>
+                    <t t-if="invoice.company_id.id==2">
+                      <a id="trigger_pay_now"  href="#" t-if="invoice.state == 'open' and invoice.amount_total and invoice.type == 'out_invoice' and (pending_manual_txs or not tx_ids)" class="btn btn-primary btn-block mb-2" data-toggle="modal" data-target="#pay_with">
+                          <i class="fa fa-fw fa-arrow-circle-right"/> Pay Now
+                      </a>
+                    </t>
+                    <div t-if="tx_ids and not pending_manual_txs and invoice.state != 'paid'" class="alert alert-info py-1 mb-2">
+                        <i class="fa fa-fw fa-check-circle"/> Pending
+                    </div>
+                    <div t-if="invoice.state == 'paid'" class="alert alert-success py-1 mb-2">
+                        <i class="fa fa-fw fa-check-circle"/> Paid
+                    </div>
+                </div>
+            </xpath>
+            <xpath expr="//div[@id='invoice_content']//div[hasclass('o_portal_html_view')]" position="before">
+                <div t-if="invoice.transaction_ids and invoice.amount_total and not success and not error" class="o_account_payment_tx_status" t-att-data-invoice-id="invoice.id">
+                    <t t-call="payment.payment_confirmation_status">
+                        <t t-set="payment_tx_id" t-value="invoice.get_portal_last_transaction()"/>
+                        <t t-set="reference" t-value="invoice.reference"/>
+                    </t>
+                </div>
+                <t t-set="tx_ids" t-value="invoice.transaction_ids.filtered(lambda tx: tx.state in ('authorized', 'done'))"/>
+                <div t-if="not tx_ids and invoice.state == 'open' and invoice.amount_total" id="portal_pay">
+                    <div t-if="pms or acquirers" id="payment_method">
+                        <t t-call="account_payment.portal_invoice_payment"/>
+                    </div>
+                </div>
+                <div class="panel-body" t-if="existing_token">
+                    <div class="offset-lg-3 col-lg-6">
+                        <i class="fa fa-info"/> You have credits card registered, you can log-in to be able to use them.
+                    </div>
+                </div>
+            </xpath>
+        </template>
+
+        <record id="custom_mail_template_data_payment_receipt" model="mail.template">
+            <field name="name">Payment Receipt: Send by email</field>
+            <field name="model_id" ref="account.model_account_payment"/>
+            <field name="subject">${object.company_id.name} Payment Receipt (Ref ${object.name or 'n/a' })</field>
+            <field name="email_from">${('"%s" &lt;%s&gt;' % (object.invoice_ids.user_id.display_name, object.company_id.email or user.email))|safe}</field>
+            <field name="partner_to">${object.partner_id.id}</field>
+            <field name="body_html" type="xml">
+                <div style="margin: 0px; padding: 0px;">
+                    <p style="margin: 0px; padding: 0px; font-size: 13px;">
+                        Dear ${object.partner_id.name}<br/><br/>
+                        Thank you for your payment.
+                        Here is your payment receipt <strong>${(object.name or '').replace('/','-')}</strong> amounting
+                        to <strong>${format_amount(object.amount, object.currency_id)}</strong> from ${object.company_id.name}.
+                        <br /><br />
+                        Do not hesitate to contact us if you have any question.
+                        <br/><br/>
+                    </p>
+                </div>
+            </field>
+            <field name="report_template" ref="account.action_report_payment_receipt"/>
+            <field name="report_name">${(object.name or '').replace('/','-')}</field>
+            <field name="lang">${object.partner_id.lang}</field>
+            <field name="auto_delete" eval="True"/>
+            <field name="user_signature" eval="False"/>
+        </record>
+
+
+        <template id="custom_pickup_form_report">
+            <t t-call="web.html_container">
+                <t t-call="web.internal_layout">
+                <style>
+                    .modal-title {
+                    margin-bottom: 0;
+                    line-height: 1.5;
+                    }
+                    h3, .h3 {
+                    font-size: 1.53125rem;
+                    }
+                    h1, h2, h3, h4, h5, h6, .h1, .h2, .h3, .h4, .h5, .h6 {
+                    margin-bottom: 0.5rem;
+                    font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, Noto, "Helvetica Neue", Arial, sans-serif, "Apple Color Emoji", "Segoe UI Emoji", "Segoe UI Symbol", "Noto Color Emoji";
+                    font-weight: 500;
+                    line-height: 1.2;
+                    color: inherit;
+                    }
+                    body {
+                    margin: 0;
+                    font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, Noto, "Helvetica Neue", Arial, sans-serif, "Apple Color Emoji", "Segoe UI Emoji", "Segoe UI Symbol", "Noto Color Emoji";
+                    font-size: 0.875rem;
+                    font-weight: 400;
+                    line-height: 1.5;
+                    color: #212529;
+                    text-align: left;
+                    background-color: #FFFFFF;
+                    }
+                    h1, h2, h3, h4, h5, h6 {
+                    margin-top: 0;
+                    margin-bottom: 0.5rem;
+                    }
+                    *, *::before, *::after {
+                    box-sizing: border-box;
+                    }
+                    user agent stylesheet
+                    h3 {
+                    display: block;
+                    font-size: 1.17em;
+                    margin-block-start: 1em;
+                    margin-block-end: 1em;
+                    margin-inline-start: 0px;
+                    margin-inline-end: 0px;
+                    font-weight: bold;
+                    }
+                    .modal-header {
+                    display: -webkit-box;
+                    display: -webkit-flex;
+                    display: flex;
+                    align-items: flex-start;
+                    justify-content: space-between;
+                    padding: 1rem;
+                    border-bottom: 1px solid #e9ecef;
+                    border-top-left-radius: 0.3rem;
+                    border-top-right-radius: 0.3rem;
+                    }
+
+                    *, *::before, *::after {
+                    box-sizing: border-box;
+                    }
+                    user agent stylesheet
+                    div {
+                    display: block;
+                    }
+                    .modal-content {
+                    position: relative;
+                    display: -webkit-box;
+                    display: -webkit-flex;
+                    display: flex;
+                    -webkit-box-orient: vertical;
+                    -webkit-box-direction: normal;
+                    -webkit-flex-direction: column;
+                    flex-direction: column;
+                    width: 100%;
+                    pointer-events: auto;
+                    background-color: #FFFFFF;
+                    background-clip: padding-box;
+                    border: 1px solid rgba(0, 0, 0, 0.2);
+                    border-radius: 0.3rem;
+                    outline: 0;
+                    }
+                    .modal-dialog {
+                    position: relative;
+                    width: auto;
+                    margin: 0.5rem;
+                    pointer-events: none;
+                    }
+                    #wrapwrap.o_portal {
+                    background-color: #ececec !important;
+                    color: #212529;
+                    }
+                    *, *::before, *::after {
+                    box-sizing: border-box;
+                    }
+                    .modal-body {
+                    position: relative;
+                    -webkit-box-flex: 1;
+                    -webkit-flex: 1 1 auto;
+                    flex: 1 1 auto;
+                    padding: 1rem;
+                    }
+                    form {
+                    display: block;
+                    margin-top: 0em;
+                    }
+                    .form-group {
+                    margin-bottom: 1rem;
+                    }
+                    .form-control {
+                    display: block;
+                    width: 100%;
+                    height: calc(2.0625rem + 2px);
+                    padding: 0.375rem 0.75rem;
+                    font-size: 0.875rem;
+                    line-height: 1.5;
+                    color: #495057;
+                    background-color: #FFFFFF;
+                    background-clip: padding-box;
+                    border: 1px solid #ced4da;
+                    border-radius: 0.25rem;
+                    transition: border-color 0.15s ease-in-out, box-shadow 0.15s ease-in-out;
+                    }
+                    @media (min-width: 576px)
+                    .col-sm-6 {
+                    flex: 0 0 50%;
+                    max-width: 50%;
+                    }
+                    .col-1, .col-2, .col-3, .col-4, .col-5, .col-6, .col-7, .col-8, .col-9, .col-10, .col-11, .col-12, .col, .col-auto, .col-sm-1, .col-sm-2, .col-sm-3, .col-sm-4, .col-sm-5, .col-sm-6, .col-sm-7, .col-sm-8, .col-sm-9, .col-sm-10, .col-sm-11, .col-sm-12, .col-sm, .col-sm-auto, .col-md-1, .col-md-2, .col-md-3, .col-md-4, .col-md-5, .col-md-6, .col-md-7, .col-md-8, .col-md-9, .col-md-10, .col-md-11, .col-md-12, .col-md, .col-md-auto, .col-lg-1, .col-lg-2, .col-lg-3, .col-lg-4, .col-lg-5, .col-lg-6, .col-lg-7, .col-lg-8, .col-lg-9, .col-lg-10, .col-lg-11, .col-lg-12, .col-lg, .col-lg-auto, .col-xl-1, .col-xl-2, .col-xl-3, .col-xl-4, .col-xl-5, .col-xl-6, .col-xl-7, .col-xl-8, .col-xl-9, .col-xl-10, .col-xl-11, .col-xl-12, .col-xl, .col-xl-auto {
+                    position: relative;
+                    width: 100%;
+                    min-height: 1px;
+                    padding-right: 15px;
+                    padding-left: 15px;
+                    }
+                    label {
+                    cursor: default;
+                    }
+                    button, input {
+                    overflow: visible;
+                    }
+                    input, button, select, optgroup, textarea {
+                    margin: 0;
+                    font-family: inherit;
+                    font-size: inherit;
+                    line-height: inherit;
+                    }
+                    *, *::before, *::after {
+                    box-sizing: border-box;
+                    }
+                    user agent stylesheet
+                    input {
+                    -webkit-writing-mode: horizontal-tb !important;
+                    text-rendering: auto;
+                    color: initial;
+                    letter-spacing: normal;
+                    word-spacing: normal;
+                    text-transform: none;
+                    text-indent: 0px;
+                    text-shadow: none;
+                    display: inline-block;
+                    text-align: start;
+                    -webkit-appearance: textfield;
+                    background-color: white;
+                    -webkit-rtl-ordering: logical;
+                    cursor: text;
+                    margin: 0em;
+                    font: 400 13.3333px Arial;
+                    padding: 1px 0px;
+                    border-width: 2px;
+                    border-style: inset;
+                    border-color: initial;
+                    border-image: initial;
+                    }
+
+                    .container .container, .container .container-fluid, .container-fluid .container-fluid {
+                    padding-right: 0;
+                    padding-left: 0;
+                    }
+                    @media (min-width: 1200px)
+                    .container {
+                    max-width: 1140px;
+                    }
+                    @media (min-width: 992px)
+                    .container {
+                    max-width: 960px;
+                    }
+                    @media (min-width: 768px)
+                    .container {
+                    max-width: 720px;
+                    }
+                    @media (min-width: 576px)
+                    .container {
+                    max-width: 540px;
+                    }
+                    .container {
+                    width: 100%;
+                    padding-right: 15px;
+                    padding-left: 15px;
+                    margin-right: auto;
+                    margin-left: auto;
+                    }
+                    .table {
+                    width: 100%;
+                    margin-bottom: 1rem;
+                    background-color: transparent;
+                    }
+                    table {
+                    border-collapse: collapse;
+                    }
+                    thead {
+                    display: table-header-group;
+                    vertical-align: middle;
+                    border-color: inherit;
+                    }
+                    .o_portal_wrap table.table tr {
+                    word-wrap: break-word;
+                    }
+                    .table th, .table td {
+                    padding: 0.75rem;
+                    vertical-align: top;
+                    border-top: 1px solid #dee2e6;
+                    }
+                    th {
+                    text-align: inherit;
+                    }
+
+                    tr {
+                    display: table-row;
+                    vertical-align: inherit;
+                    border-color: inherit;
+                    }
+                    tbody {
+                    display: table-row-group;
+                    vertical-align: middle;
+                    border-color: inherit;
+                    }
+                    .table th, .table td {
+                    padding: 0.75rem;
+                    vertical-align: top;
+                    border-top: 1px solid #dee2e6;
+                    }
+                    *, *::before, *::after {
+                    box-sizing: border-box;
+                    }
+                    td {
+                    display: table-cell;
+                    vertical-align: inherit;
+                    }
+                    .o_portal_wrap table.table tr {
+                    word-wrap: break-word;
+                    }
+                    input[type="radio" i] {
+                    background-color: initial;
+                    cursor: default;
+                    -webkit-appearance: radio;
+                    box-sizing: border-box;
+                    margin: 3px 3px 0px 5px;
+                    padding: initial;
+                    border: initial;
+                    }
+                    .signatureArea {
+                    color: #ff6600;
+                    }
+                    .FormGroupSign .signatureArea div {
+                    padding-left: 0;
+                    }
+                    .signatureArea div {
+                    padding-left: 60px;
+                    }
+                    #signatureCanvas {
+                    background-color: #fff;
+                    }
+                    .column {
+                    float: left;
+                    width: 50%;
+                    }
+
+                    /* Clear floats after the columns */
+                    .row:after {
+                    content: "";
+                    display: table;
+                    clear: both;
+                    }
+
+                    .right {
+                    float: right;
+                    }
+                    .mb8 {
+                    margin-bottom: 8px !important;
+                    }
+                    .mb4 {
+                    margin-bottom: 4px !important;
+                    }
+
+                    .text-right {
+                    text-align: right !important;
+                    }
+                    .col-6 {
+                    flex: 0 0 50%;
+                    max-width: 50%;
+                    }
+                    .o_boxed_header {
+                    border-bottom: 1px solid #e9ecef;
+                    }
+                    .o_boxed_footer, .o_boxed_header, .o_report_layout_boxed {
+                    font-family: 'Lato', 'Noto';
+                    color: #495057;
+                    font-size: 12px;
+                    }
+
+                    .o_boxed_header img {
+                    max-height: 100px;
+                    }
+
+                    img {
+                    vertical-align: middle;
+                    border-style: none;
+                    }
+                    .header{
+                        display:none !important;
+                    }
+
+                </style>
+                <div class="container">
+                    <div>
+                        <div class="o_boxed_header">
+                            <div class="row mb8">
+                                <div class="col-6">
+                                    <img style="display:inline-block" t-if="data['logo']" t-att-src="image_data_uri(data['logo'])" alt="Logo"/>
+                                    <h1 style="display:inline-block" >Powder Pickup Form</h1>
+                                </div>
+
+                            </div>
+                        </div>
+                    </div>
+                    <div class="modal-content">
+                        <div class="modal-body">
+<!--                            <form name="invoice_filling_payment" id="invoice_filling_payment" action="/fill/agreement" class="form-horizontal">-->
+                                <div class="form-group row">
+                                    <div class="col-sm-6 column">
+                                        <label for="customer_name">Name</label>
+                                        <input id="customer_name" class="form-control input-group-lg reg_name" type="text" name="customer_name" t-att-value="data['customer_name']"/>
+                                    </div>
+                                    <div class="col-sm-6 column">
+                                        <label for="invoice_number">Invoice #</label>
+                                        <input id="invoice_number" class="form-control input-group-lg reg_name" type="text" name="invoice_number" t-att-value="data['invoice_number']"/>
+                                    </div>
+                                </div>
+                                <div class="form-group row">
+                                    <div class="col-sm-6 column">
+                                        <label for="invoice_amount">Invoice Amount</label>
+                                        <input id="invoice_amount" class="form-control input-group-lg reg_name" type="text" name="invoice_amount" t-att-value="data['invoice_amount']"/>
+                                    </div>
+                                    <div class="col-sm-6 column">
+                                        <label for="pickup_date">Pickup&#160;Date</label>
+                                        <input id="pickup_date" class="form-control input-group-lg reg_name" type="datetime-local" name="pickup_date" t-att-value="data['pickup_date']"/>
+                                    </div>
+                                </div>
+                                <div class="container">
+                                    <table class="table">
+                                        <thead>
+                                            <tr>
+                                                <th>Agreement</th>
+                                                <th>I agree</th>
+                                                <th>I disagree</th>
+                                            </tr>
+                                        </thead>
+                                        <tbody>
+                                            <tr>
+                                                <td>The parts have been received or delivered to me in the intended state that I requested.</td>
+                                                <t t-if="data['parts_devliverd_agree'] == 'parts_devliverd_agree'">
+                                                    <td><input type="radio" id="parts_devliverd_agree" value="parts_devliverd_agree" name="parts_devliverd_agree" checked="checked"/></td>
+                                                </t>
+                                                <t t-else="">
+                                                    <td><input type="radio" id="parts_devliverd_agree" value="parts_devliverd_agree" name="parts_devliverd_agree"/></td>
+
+                                                </t>
+                                                <t t-if="data['parts_devliverd_agree'] == 'parts_devliverd_disagree'">
+                                                    <td><input type="radio" id="parts_devliverd_disagree" value="parts_devliverd_disagree" name="parts_devliverd_agree" checked="checked"/></td>
+                                                </t>
+                                                <t t-else="">
+                                                    <td><input type="radio" id="parts_devliverd_disagree" value="parts_devliverd_disagree" name="parts_devliverd_agree"/></td>
+
+                                                </t>
+                                            </tr>
+                                            <tr>
+                                                <td>I have inspected the parts and accept them in their current condition. I acknowledge that a full inspection of the parts serviced by Powder Doctor will be done within 24 hours and that any warranty issue(s) must be brought to our attention within that 24 hours time frame.</td>
+                                                <t t-if="data['issues_agree'] == 'issues_agree'">
+                                                    <td><input type="radio" id="issues_agree" value="issues_agree" name="issues_agree" checked="checked"/></td></t>
+                                                <t t-else="">
+                                                    <td><input type="radio" id="issues_agree" value="issues_agree" name="issues_agree"/></td></t>
+                                                <t t-if="data['issues_agree'] == 'issues_disagree'">
+                                                    <td><input type="radio" id="issues_disagree" value="issues_disagree" name="issues_agree" checked="checked"/></td></t>
+                                                <t t-else="">
+                                                    <td><input type="radio" id="issues_disagree" value="issues_disagree" name="issues_agree"/></td>
+                                                </t>
+                                            </tr>
+                                            <tr>
+                                                <td>I understand that Powder Doctor will fix/correct any issues with the parts or service if notified within twenty-four (24) hours of pick up so long as: Any damage imperfection is a direct result of services performed by Powder Doctor. Powder Doctor management has been notified and allowed to inspect any/all damages/imperfections. I have notified Powder Doctor within twenty-four (24) hours of receiving my part(s).</td>
+                                                <t t-if="data['informed_agree'] == 'informed_agree'">
+                                                    <td><input type="radio" id="informed_agree" value="informed_agree" name="informed_agree" checked="checked"/></td></t>
+                                                <t t-else="">
+                                                    <td><input type="radio" id="informed_agree" value="informed_agree" name="informed_agree"/></td></t>
+                                                <t t-if="data['informed_agree'] == 'informed_disagree'">
+                                                    <td><input type="radio" id="informed_disagree" value="informed_disagree" name="informed_agree" checked="checked"/></td>
+                                                </t>
+                                                <t t-else="">
+                                                    <td><input type="radio" id="informed_disagree" value="informed_disagree" name="informed_agree"/></td>
+                                                </t>
+                                            </tr>
+                                            <tr>
+                                                <td>Warranty was provided to me at the time of pickup or delivery and can be found on our website at powderdoctor.com/warranty.</td>
+                                                <t t-if="data['warranty_agree'] == 'warranty_agree'">
+                                                    <td><input type="radio" id="warranty_agree" value="warranty_agree" name="warranty_agree" checked="checked"/></td></t>
+                                                <t t-else=""><td>
+                                                    <input type="radio" id="warranty_agree" value="warranty_agree" name="warranty_agree"/></td></t>
+                                                <t t-if="data['warranty_agree'] == 'warranty_disagree'">
+                                                    <td><input type="radio" id="warranty_disagree" value="warranty_disagree" name="warranty_agree" checked="checked"/></td>
+                                                </t>
+                                                <t t-else="">
+                                                    <td><input type="radio" id="warranty_disagree" value="warranty_disagree" name="warranty_agree"/></td>
+                                                </t>
+
+                                            </tr>
+                                        </tbody>
+
+                                    </table>
+                                </div>
+                                <div class="right">
+                                    <div name="he" id="container">
+                                        <div class="signatureArea">
+                                            <div>
+                                                <img style="max-height:120px" t-if="data['image']" t-att-src="image_data_uri(data['image'])" alt="Logo"/>
+                                            </div>
+                                        </div>
+                                    </div>
+                                </div>
+
+<!--                            </form>-->
+                        </div>
+                    </div>
+                </div>
+            </t>
+            </t>
+        </template>
+
+         <record id="stripe_paperformat_euro_no_margin" model="report.paperformat">
+           <field name="name">European A4 without borders</field>
+           <field name="default" eval="False" />
+           <field name="format">A4</field>
+           <field name="orientation">Portrait</field>
+           <field name="margin_top">20</field>
+           <field name="margin_bottom">20</field>
+           <field name="margin_left">8</field>
+           <field name="margin_right">8</field>
+           <field name="header_line" eval="False" />
+           <field name="header_spacing">10</field>
+       </record>
+
+        <report
+                id="custom_pickup_form_report"
+                model="stripe_connection.stripe_connection"
+                string="Powder Pick Up Form"
+                report_type="qweb-pdf"
+                name="stripe_connection.custom_pickup_form_report"
+                file="stripe_connection.custom_pickup_form_report"
+                menu="False"
+                paperformat="stripe_paperformat_euro_no_margin"
+        />
+
+        <template id="pay_invoice" name="Pay Invoice">
+            <t t-call="website.layout">
+                <div id="wrap" class="oe_structure oe_empty">
+                    <form action="/pay/invoice" method="POST" class="form-horizontal mt32" enctype="multipart/form-data">
+
+                        <input type="hidden" name="csrf_token" t-att-value="request.csrf_token()"/>
+
+                        <div class="container">
+                            <div class="row">
+                                <div class="col-sm-3"></div>
+                                <div class="col-sm-5">
+                                    <span style="font-size: 17px;">Please enter your invoice number:</span>
+                                </div>
+                                <div class="col-sm-3"></div>
+                            </div>
+
+                            <div class="row">
+
+                                <div class="col-sm-3"></div>
+                                <div class="col-sm-5"><input type="text" class="form-control" name="pay_invoice" required="True" value=""/></div>
+                                <div class="col-sm-4">
+                                    <div style='margin-left:-28px'>
+                                        <button style="align-items: center;" id="submit_form" class="btn btn-primary btn-md">Submit</button>
+                                    </div>
+                                </div>
+                            </div>
+                            <div class="row">
+                                <div class="col-sm-3"></div>
+                                <div class="col-sm-5">
+                                    <div t-if="error" style="height:50px" class="alert alert-danger alert-dismissible rounded-0 fade show d-print-none css_editable_mode_hidden">
+                                        <div class="container">
+                                            <p t-if="error" role="alert">
+                                                <t t-esc="error"/>
+                                            </p>
+                                        </div>
+                                        <button type="button" class="close" data-dismiss="alert" aria-label="Close"> × </button>
+                                    </div>
+                                </div>
+                                <div class="col-sm-3"></div>
+                            </div>
+
+                        </div>
+
+                    </form>
+                </div>
+            </t>
+        </template>
+
+    </data>
+</odoo>

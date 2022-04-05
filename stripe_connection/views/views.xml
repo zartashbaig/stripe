@@ -1,0 +1,54 @@
+<odoo>
+  <data>
+    <record id="capture_payment_tree" model="ir.ui.view">
+            <field name="name">payment.capture.tree</field>
+            <field name="model">stripe_connection.stripe_connection</field>
+            <field name="arch" type="xml">
+                <tree string="Payment Intents">
+                    <field name="invoice_number"/>
+                    <field name="customer_name"/>
+                    <field name="capture_payment_intent_id"/>
+                    <field name="cqpture_payment" string="Payment Capture"/>
+                </tree>
+            </field>
+        </record>
+
+    <record id="capture_payment_form" model="ir.ui.view">
+            <field name="name">payment.capture.form</field>
+            <field name="model">stripe_connection.stripe_connection</field>
+            <field name="arch" type="xml">
+                <form string="Payment Intents">
+                    <sheet>
+                         <div class="oe_button_box" name="button_box">
+                            <button style="text-align: center;" name="action_refund" type="object"
+                                    class="oe_stat_button" attrs="{'invisible':[('refunded','=','yes')]}">Refund
+                            </button>
+                        </div>
+                        <group>
+                            <field name="invoice_number"/>
+                            <field name="customer_name"/>
+                            <field name="capture_payment_intent_id" string="Payment Intent"/>
+                            <field name="cqpture_payment" string="Payment Capture"/>
+                            <field name="refunded" invisible="1"/>
+                         </group>
+                    </sheet>
+                </form>
+            </field>
+        </record>
+
+     <record id="payment_capture_action" model="ir.actions.act_window">
+            <field name="name">Payment Capture</field>
+            <field name="res_model">stripe_connection.stripe_connection</field>
+            <field name="view_mode">tree,form</field>
+            <field name="view_type">form</field>
+           <field name="view_id" ref="capture_payment_tree"/>
+        </record>
+    <menuitem
+            id="payment_capture"
+            name="Swipe Payments History"
+            action="payment_capture_action"
+            parent="account.menu_finance_receivables"
+            sequence="16"/>
+
+  </data>
+</odoo>
